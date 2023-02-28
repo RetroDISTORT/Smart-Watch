@@ -1,4 +1,8 @@
 # I/ON32 Smartwatch
+<p align=<p align="center">
+  <img src="images/bootup.gif">
+</p>
+
 The I/ON32 is a smartwatch designed around the [ESP32](https://en.wikipedia.org/wiki/ESP32). I/ON32 is a smart multipurpose IoT device running [micropython](https://Micropython.org). It can also compatible with the [Arduino](https://www.arduino.cc/) platform through the [IDE](https://www.arduino.cc/en/software). 
 
 ## Features
