@@ -1,0 +1,8 @@
+#DRT(1,242,0,44,11,0); 	//clear clock area
+#DPS(1); 	// Set font size to 1
+#DPC(65535); 	// Set font Colour white
+#DPX(242,2);	// Set cursor position (note: 6 pixels every font 1 character)
+#DPP("12:00am");// Print "clock"
+#EXT();
+
+//END OF THE FILE (USE THIS LINE TO AVOID OVER READ)

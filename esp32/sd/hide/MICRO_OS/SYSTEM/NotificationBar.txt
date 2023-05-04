@@ -1,0 +1,101 @@
+#DRT(1,0,0,320,11,0);	//Draws black rectangle
+#DHL(0,12,320,65535);	//Horizontal fast line
+#DRT(1,286,0,32,11,0); 		//clear battery area
+#DRT(0,288,0,32,11,65535);	//Draw Battery Body
+#DRT(0,286,1,3,9,65535);	//Draw battery Tip
+#GO ([STATUS DATA]);
+
+[REFRESH];		//Use this to skip all the start of the code
+#int(0,0,0);
+#DRT(1,289,1,30,10,0);	//Clears Inside The Battery
+#DRT(1,242,0,44,11,0); 	//clear clock area
+
+[STATUS DATA];		// Draws the info inside the battery
+#DFP($MXV(1),289,2,65535,1);
+#DFP("12:00am",242,2,65535,1);	//Clock Print
+#EXT();
+
+[OPEN];
+#DRT(1,0,13,320,227,0);	//Draws black rectangle
+#DRT(1,0,231,320,9,65535);	//Draws white rectangle
+#DFP("HIDE",150,232,0,1);	//Print Hide
+//SUN
+#DCR(1,25,30,5,65535); 
+#DVL(25,20,3,65535); 
+#DVL(26,20,3,65535); 
+#DVL(25,38,3,65535); 
+#DVL(24,38,3,65535); 
+#DHL(33,30,3,65535); 
+#DHL(33,31,3,65535); 
+#DHL(15,29,3,65535); 
+#DHL(15,30,3,65535);
+#DLN(30,35,32,37,65535); 
+#DLN(30,36,32,38,65535);
+#DLN(31,25,33,23,65535); 
+#DLN(31,24,33,22,65535);
+#DLN(20,35,18,37,65535); 
+#DLN(20,36,18,38,65535); 
+#DLN(20,25,18,23,65535); 
+#DLN(20,24,18,22,65535);
+#DRS(0,38,26,200,9,4,65535);
+#DRS(0,250,20,40,80,5,65535);
+#GTO([LOAD]);
+#GO ([TOUCH]);
+
+[LOAD]; //LOADS SAVED VALUES AND DRAWS THEM
+#DRS(1,38,26,$DPB()*188/255+13,9,4,65535);
+#IFF($RGB(),[ON],[OFF]);
+#RTN();
+
+[ON];
+#DRS(1,250,20,40,80,5,0);
+#DRS(0,250,20,40,80,5,65535);
+#DRS(1,250,20,40,40,5,65535);
+#DCR(1,270,35,11,0);
+#DCR(1,270,35,9,65535);
+#DRS(1,265,45,10,10,2,0);
+#DRS(1,268,53,4,4,2,0);
+#RTN();
+
+#DCR(1,270,73-50,11,65535);
+
+[OFF];
+#DRS(1,250,20,40,80,5,0);
+#DRS(0,250,20,40,80,5,65535);
+#DRS(1,250,60,40,40,5,65535);
+#DCR(1,270,35,11,65535);
+#DCR(1,270,35,9,0);
+#DRS(1,265,45,10,10,2,65535);
+#DRS(1,268,53,4,4,2,65535);
+#RTN();
+
+[TOUCH];
+#IF ($TSZ()," ",[TOUCH]);
+#IF ($TSB(0,200,320,40),[HIDE]," ");	//If HIDE is tapped [0,231,320,9]<real values
+#IF ($TSB(50,26,188,9),[BRIGHT]," ");	//If touch within range brightness
+#IF ($TSB(240,20,60,90),[FLASH]," ");	//If touch within flashlight range
+
+#GO ([TOUCH]);
+
+[BRIGHT];
+#DRS(1,38,26,200,9,4,0);
+#DRS(0,38,26,200,9,4,65535);
+#DRS(1,38,26,$TSX(0,1)-38,9,4,65535);
+#DPB($TSX(0,1)-50*255/188);
+#GO ([TOUCH]);
+
+[FLASH];
+#IF ($TSZ(),[FLASH]," ");
+#IFF($RGB(),[OFF],[ON]);
+#IF ($RGB(),[LOFF]," ");
+#RGB(255,255,255);
+#GO ([TOUCH]);
+[LOFF];
+#RGB(0,0,0);
+#GO ([TOUCH]);
+
+[HIDE];
+#DRT(1,0,13,320,240,0);	//Draws black rectangle
+#EXT();
+
+//END OF THE FILE (USE THIS LINE TO AVOID OVER READ)

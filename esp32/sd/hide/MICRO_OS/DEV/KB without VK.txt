@@ -1,0 +1,17 @@
+#DPF(0);
+#DPR(1);
+#KBD();
+[GETKEY];
+#str(0,1,$str(0,0));
+#str(0,0,$SAD($str(0,0),$KEY()));
+#IFF($SCP($str(0,0),"==",$str(0,1)),[GETKEY]," ");
+#SSS("VK_INPUT:");
+#SLN($VKR());
+#DRT(1,0,0,320,15,0);
+#DFP($str(0,0),0,0,65535,1);
+#GTO([GETKEY]);
+
+//END
+
+
+

@@ -1,0 +1,67 @@
+[RESTART];
+#DPR(1);	//rotate screen
+#DPF(0);	//paint screen black
+#int(0,0,0);
+
+//MAIN
+#APP("/MICRO_OS/SYSTEM/NotificationBar.txt",0);
+#GTO([ICONS]);
+[REFRESH];
+#flt(0,0,$flt(0,0)+.5);
+#IFF($flt(0,0)>1000,[STATUS REFRESH]," ");
+#IFF($TSZ(),[TOUCH]," ");
+#IF ($TCH()>40,[ELSE]," ");//Double Check To Avoid Error
+#IF ($TCH()>40," ",[SLEEP]);	//Double Check To Avoid Error
+[ELSE];
+#GTO([REFRESH]);
+
+[TOUCH];
+#IF ($TSB(0,0,320,12),[NOTIF]," ");
+#IF ($TSB(5,17,50,50),[APP1]," ");
+#IF ($TSB(55,17,50,50),[APP2]," ");
+#IF ($TSB(110,17,50,50),[APP3],[EXIT]);
+[NOTIF];
+#APP("/MICRO_OS/SYSTEM/NotificationBar.txt",[OPEN]);
+#GO ([RESTART]);
+[APP1];
+#APP("/MICRO_OS/SYSTEM/INIT.txt"," ");
+[APP2];
+#APP("/MICRO_OS/APPS/KB.txt"," ");
+[APP3];
+#APP("/MICRO_OS/APPS/Tetris.txt"," ");
+[EXIT];
+#RTN();
+
+[ICONS];
+#DRT(0,13,0,12,320,0);	//Draws black rectangle
+#DHL(0,12,320,65535);	//Horizontal fast line
+
+#DRS(0,5,17,50,50,5,65535);	//app icon block
+#DFP("RESTART",$SLE("RESTART")*5/2+5,74,65535,1);	//app name
+
+#DRS(0,60,17,50,50,5,65535);	//app icon block
+#DFP("NOTEPAD",$SLE("NOTEPAD")*5/2+55,74,65535,1);	//app name
+
+#DRS(0,115,17,50,50,5,65535);	//app icon block
+#DFP("RGB",$SLE("RGB")*5/2+110,74,65535,1);	//app name
+
+#RTN();
+
+[STATUS BAR];
+#DRT(1,286,0,32,11,0); 		//clear battery area
+#DRT(0,288,0,32,11,65535);	//Draw Battery Body
+#DRT(0,286,1,3,9,65535);	//Draw battery Tip
+#GO ([STATUS DATA]);
+
+[STATUS REFRESH];		//Use this to skip all the start of the code
+#APP("/MICRO_OS/SYSTEM/NotificationBar.txt",[REFRESH]);
+#flt(0,0,0); //restart timer
+#GO ([REFRESH]);
+
+[SLEEP];
+#IFF($TCH()>40," ",[SLEEP]);	//Waits For Button Release
+#DPB(0);			//Turns Off Display Backlight
+#DSP(20,"/MICRO_OS/SYSTEM/Main.txt"," ");	//Goes To power Down Mode And Wakes Up After 60pts Sensitiblilty Touch
+
+
+//END OF THE FILE (USE THIS LINE TO AVOID "OVER READ")

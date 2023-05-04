@@ -1,0 +1,28 @@
+// STARTUP LOADING SCREEN
+#DPR(0);
+#HPC(1);
+#DPF(0);
+#DPF(63488);
+#DPF(2016);
+#DPF(31);
+#DPF(0);
+#DPC(31);
+#DPS(5);
+#DPX(30,120);
+#DPL("PHOTON");
+#DPC(65535);
+#DPS(2);
+#DPX(110,155);
+#DPL("Micro OS");
+#DPX(0,280);
+#DPS(1);
+#DPL("Micro OS typer:TXT");
+#DPL("All Microcontrollers matter");
+#DPL($VRS());
+#DPL("Created by:RetroDISTORT");
+#DLY(200);
+#HPC(0);
+//#CMD();
+#APP("/MICRO_OS/SYSTEM/Main.txt",0);
+
+//END OF THE FILE (USE THIS LINE TO AVOID OVER READ)
