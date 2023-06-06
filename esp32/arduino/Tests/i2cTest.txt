@@ -1,0 +1,5 @@
+import machine
+pin = machine.Pin(21, machine.Pin.OUT)
+pin.value(1)
+i2c = machine.I2C(scl=machine.Pin(14),sda=machine.Pin(27))
+i2c.scan()

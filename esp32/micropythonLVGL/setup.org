@@ -1,0 +1,289 @@
+* Setup
+This tutorial is made using the [[https://github.com/lvgl/lv_micropython][lv_micropython repository]] tutorial
+
+** Check and/or install python3-pip
+If pip3 is not installed, then the result should show an error.
+#+NAME: Check pip
+#+BEGIN_SRC shell :results raw drawer
+python -m pip --version
+#+END_SRC
+
+#+RESULTS: Check pip
+:results:
+pip 23.0.1 from /usr/lib/python3.10/site-packages/pip (python 3.10)
+:end:
+
+** Install esptool
+Install /esptool/ to interface with the device.
+#+NAME: Install esptool
+#+BEGIN_SRC shell :dir /sudo:: :results raw drawer
+sudo pip3 install esptool
+#+END_SRC
+
+#+RESULTS: Install esptool
+:results:
+Collecting esptool
+  Downloading esptool-4.5.1.tar.gz (252 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 252.2/252.2 kB 325.4 kB/s eta 0:00:00
+
+  Preparing metadata (setup.py) ... [?25l- done
+[?25hCollecting bitstring>=3.1.6
+  Downloading bitstring-4.0.2-py3-none-any.whl (46 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.0/46.0 kB 521.2 kB/s eta 0:00:00
+
+Requirement already satisfied: cryptography>=2.1.4 in /usr/lib/python3.10/site-packages (from esptool) (39.0.2)
+Collecting ecdsa>=0.16.0
+  Downloading ecdsa-0.18.0-py2.py3-none-any.whl (142 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 142.9/142.9 kB 615.5 kB/s eta 0:00:00
+
+Collecting pyserial>=3.0
+  Downloading pyserial-3.5-py2.py3-none-any.whl (90 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 662.8 kB/s eta 0:00:00
+
+Collecting reedsolo<=1.6.0,>=1.5.3
+  Downloading reedsolo-1.6.0.tar.gz (278 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 278.6/278.6 kB 175.7 kB/s eta 0:00:00
+
+  Preparing metadata (setup.py) ... [?25l- \ done
+[?25hRequirement already satisfied: cffi>=1.12 in /usr/lib/python3.10/site-packages (from cryptography>=2.1.4->esptool) (1.15.1)
+Requirement already satisfied: six>=1.9.0 in /usr/lib/python3.10/site-packages (from ecdsa>=0.16.0->esptool) (1.16.0)
+Requirement already satisfied: pycparser in /usr/lib/python3.10/site-packages (from cffi>=1.12->cryptography>=2.1.4->esptool) (2.21)
+Building wheels for collected packages: esptool, reedsolo
+  Building wheel for esptool (setup.py) ... [?25l- \ done
+[?25h  Created wheel for esptool: filename=esptool-4.5.1-py3-none-any.whl size=320920 sha256=628808dc90df1d22eecf3b28c60ab92c8d37aabfab892178a408d4ccb5313861
+  Stored in directory: /root/.cache/pip/wheels/0c/c1/d2/79a44d2615160cce5930be100b5d238e16c5a001f156674b64
+  Building wheel for reedsolo (setup.py) ... [?25l- \ | / - \ done
+[?25h  Created wheel for reedsolo: filename=reedsolo-1.6.0-cp310-cp310-linux_x86_64.whl size=1000967 sha256=078b09517235b12c78c49eb073ad872f2d32097702f9bc2b991815d517e77950
+  Stored in directory: /root/.cache/pip/wheels/e2/64/52/65c5db6d7c5a7bae6a3660e818d913071833adfde123a67cb9
+Successfully built esptool reedsolo
+Installing collected packages: reedsolo, pyserial, ecdsa, bitstring, esptool
+Successfully installed bitstring-4.0.2 ecdsa-0.18.0 esptool-4.5.1 pyserial-3.5 reedsolo-1.6.0
+:end:
+
+** Find Device
+Now run the following code if you forgot where the USB to Serial device is:
+
+#+NAME: Find Serial Devices
+#+BEGIN_SRC shell :dir /sudo:: :results raw drawer
+echo "Usually the device is named ttyUSB#"
+sudo dmesg | grep tty
+#+END_SRC
+
+#+RESULTS: Find Serial Devices
+:results:
+Usually the device is named ttyUSB#
+[    0.131904] printk: console [tty0] enabled
+[    0.414941] tty tty33: hash matches
+[    3.864352] systemd[1]: Created slice Slice /system/getty.
+[    5.232450] dw-apb-uart.2: ttyS4 at MMIO 0x9432e000 (irq = 20, base_baud = 115200) is a 16550A
+[    7.412340] usb 1-3.3: FTDI USB Serial Device converter now attached to ttyUSB0
+[ 4635.489714] ftdi_sio ttyUSB0: FTDI USB Serial Device converter now disconnected from ttyUSB0
+[19020.329682] usb 1-3.3: FTDI USB Serial Device converter now attached to ttyUSB0
+[21972.419922] ftdi_sio ttyUSB0: FTDI USB Serial Device converter now disconnected from ttyUSB0
+[21974.245451] usb 1-3.3: FTDI USB Serial Device converter now attached to ttyUSB1
+:end:
+
+** Set ESP32 to download mode
+Before we can erase the flash and install the bootloader, we need to set the device into download mode.
+
+Type the following in a terminal to load make sure the ESP32 is in download mode.
+(This is not required, but it helps to confirm that the device is successfully set to download mode)
+
+#+NAME: Read Serial Port
+#+BEGIN_SRC shell :dir /sudo:: :results raw drawer
+sudo screen /dev/ttyUSB0 115200
+#+END_SRC
+
+To exit this mode press CTRL-a CTRL-d
+
+Now we can set the device into download mode by following these steps:
+
+  1) Press Reset button and IO0 at the same time and hold
+  2) Release Reset, but hold IO0
+  3) Release IO0
+
+When successful, it should display the following:
+
+   /rst:0x1 (POWERON_RESET),boot:0x2 (DOWNLOAD_BOOT(UART0/UART1/SDIO_REI_FEO_V2))
+   waiting for download/
+
+** Erase Flash
+Now we can erase the flash memory. Make sure the right port is selected.
+If any errors occur, disconnect and reconnect the device and set in download mode again.
+
+#+NAME: Erase ESP32 Flash
+#+BEGIN_SRC shell :dir /sudo:: :results raw drawer
+sudo esptool.py -p /dev/ttyUSB0 erase_flash
+#+END_SRC
+
+#+RESULTS: Erase ESP32 Flash
+:results:
+Usually the device is named ttyUSB#
+[    0.131904] printk: console [tty0] enabled
+[    0.414941] tty tty33: hash matches
+[    3.864352] systemd[1]: Created slice Slice /system/getty.
+[    5.232450] dw-apb-uart.2: ttyS4 at MMIO 0x9432e000 (irq = 20, base_baud = 115200) is a 16550A
+[    7.412340] usb 1-3.3: FTDI USB Serial Device converter now attached to ttyUSB0
+[ 4635.489714] ftdi_sio ttyUSB0: FTDI USB Serial Device converter now disconnected from ttyUSB0
+[19020.329682] usb 1-3.3: FTDI USB Serial Device converter now attached to ttyUSB0
+:end:
+
+** Make Binary
+For this tutorial, the ESP-IDF is required to build the binary.
+
+*** Setup ESP-IDF
+First follow the setup.org in the /esp-idf/ folder.
+
+*** Make a binary 
+Now that the IDF is setup, the binary can be made and deployed
+
+First Micropython cross-compiler must be built to pre-compile some of the built-in scripts to bytecode.
+#+NAME: Make and Deploy
+#+BEGIN_SRC shell :dir /sudo:: :results raw drawer
+make -C lv_micropython/mpy-cross
+#+END_SRC
+
+Now to build Micropython and Deploy (MAKE SURE THAT THE FLASH WAS ERASED BEFORE) 
+#+NAME: Make and Deploy
+#+BEGIN_SRC shell :dir /sudo:: :results raw drawer
+make -C lv_micropython/ports/esp32 LV_CFLAGS="-DLV_COLOR_DEPTH=16" BOARD=GENERIC_SPIRAM deploy
+#+END_SRC
+
+Reset and the esp32 should now have lv_micropython ready
+** Hardware tests
+*** I2C Scanner
+#+NAME: I2C Test
+#+BEGIN_SRC python
+import machine
+from   machine import Pin
+
+# Enable 4.2v Rail
+enablePower = machine.Pin(21, Pin.OUT)
+enablePower.value(1)
+
+i2c     = machine.I2C(0, sda=machine.Pin(27), scl=machine.Pin(14), freq=100000)
+i2c.scan()
+devices = i2c.scan()
+
+print("" if 56  in devices else "ERROR: Touch  Sensor  not found at 56  (0x38)!\n", end="")
+print("" if 57  in devices else "ERROR: Light  Sensor  not found at 57  (0x39)!\n", end="")
+print("" if 64  in devices else "ERROR: Lipo   Sensor  not found at 64  (0x40)!\n", end="")
+print("" if 87  in devices else "ERROR: Pulse  Sensor  not found at 87  (0x57)!\n", end="")
+print("" if 90  in devices else "ERROR: Haptic Control not found at 90  (0x5A)!\n", end="")
+print("" if 104 in devices else "ERROR: RTC    Sensor  not found at 104 (0x68)!\n", end="")
+print("" if 105 in devices else "ERROR: GYRO   Sensor  not found at 105 (0x69)!\n", end="")
+print("" if 118 in devices else "ERROR: Press. Sensor  not found at 118 (0x76)!\n", end="")
+
+#+END_SRC
+*** RGB LEDs
+#+NAME: SK6812 Test
+#+BEGIN_SRC python
+import neopixel, machine
+from   machine import Pin
+
+# Enable 4.2v Rail
+enablePower = Pin(21, Pin.OUT)
+enablePower.value(1)
+
+# Setup LEDs
+np    = neopixel.NeoPixel(machine.Pin(0), 3, bpp=4)
+np[1] = (1,1,1,1)
+np.write()
+#+END_SRC
+
+*** Display
+#+NAME: Display Test
+#+BEGIN_SRC python
+import machine
+import lvgl as lv
+
+from ili9XXX import ili9341
+
+# Set Backlight
+disp = ili9341(miso=19, mosi=23, clk=18, cs=22, dc=2, rst=32, power=-1, backlight=-1, backlight_on=0, power_on=0,
+               spihost=esp.VSPI_HOST)
+
+brightness = machine.PWM(machine.Pin(5), freq=500, duty=1023)
+brightness.duty(512) # Max brightness = 1023
+
+#+END_SRC
+
+*** SD Card
+#+NAME: SD Card Test
+#+BEGIN_SRC python
+import machine, os
+
+SD = machine.SDCard(slot=2, sck = 18, miso = 19, mosi = 23, cs = 15, freq = 20000000)
+os.mount(SD, "/sd")
+os.listdir()
+os.chdir("/sd")
+#+END_SRC
+*** WiFi
+#+NAME: WiFi Test
+#+BEGIN_SRC python
+import network, time
+
+wlan = network.WLAN(network.STA_IF)  # create station interface
+time.sleep(1)                        # give time for the capacitors to stabalize
+wlan.active(True)                    # activate the interface
+wlan.connect('Rwifi', 'RD123456789') # connect to an AP
+wlan.isconnected()                   # check if the station is connected to an AP
+#+END_SRC
+*** WebREPL
+#+NAME: WebREPL Test
+#+BEGIN_SRC python
+import network, time, webrepl 
+
+wlan = network.WLAN(network.STA_IF)  # create station interface
+time.sleep(1)                        # give time for the capacitors to stabalize
+wlan.active(True)                    # activate the interface
+wlan.connect('Rwifi', 'RD123456789') # connect to an AP
+wlan.isconnected()                   # check if the station is connected to an AP
+webrepl.start(password='mypass')
+
+#+END_SRC
+*** I2S
+#+NAME: Display Test
+#+BEGIN_SRC python
+from machine import I2S
+from machine import Pin
+
+# ESP32
+sck_pin  = Pin(12)    # Serial clock output
+ws_pin   = Pin(25)    # Word clock output
+din_pin  = Pin(34)    # Data MIC
+dout_pin = Pin(13)    # Data Speaker
+
+audio_out = I2S(0,
+                sck=sck_pin, ws=ws_pin, sd=dout_pin,
+                mode=I2S.TX,
+                bits=16,
+                format=I2S.MONO,
+                rate=44100,
+                ibuf=20000)
+
+audio_in = I2S(I2S.NUM0,
+               sck=sck_pin, ws=ws_pin, sd=din_pin,
+               mode=I2S.RX,
+               bits=32,
+               format=I2S.STEREO,
+               rate=22050,
+               ibuf=20000)
+
+num_written = audio_out.write(buf) # blocks until buf emptied
+#+END_SRC
+*** Battery Sensor
+#+NAME: Display Test
+#+BEGIN_SRC python
+from ina219 import INA219
+from machine import I2C
+
+I2C_INTERFACE_NO = 2
+SHUNT_OHMS = 0.1  # Check value of shunt used with your INA219
+
+ina = INA219(SHUNT_OHMS, I2C(I2C_INTERFACE_NO))
+ina.configure()
+print("Bus Voltage: %.3f V" % ina.voltage())
+print("Current: %.3f mA" % ina.current())
+print("Power: %.3f mW" % ina.power())
+#+END_SRC

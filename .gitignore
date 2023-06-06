@@ -1,0 +1,3 @@
+esp32/micropythonLVGL/lv_micropython/*
+esp32/micropythonOfficial/bootloader/*
+esp32/esp-idf/esp-idf/*

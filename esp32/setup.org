@@ -1,0 +1,769 @@
+* Setup and Hardware Integrity Test
+The following code snippets are designed to test major components in the smartwatch.
+The following will be checked:
+ - I2C Device Connections
+ - SPI Device Connections
+ - LED Device Connections
+ - Button Connections
+ - Battery Connection
+   
+* Setup & Installation
+** Get Device
+#+NAME: Find Serial Devices
+#+BEGIN_SRC shell :dir /sudo:: :results raw drawer
+echo "Usually the device is named ttyUSB#"
+sudo dmesg | grep tty
+#+END_SRC
+
+#+RESULTS: Find Serial Devices
+:results:
+Usually the device is named ttyUSB#
+[    0.131904] printk: console [tty0] enabled
+[    0.414941] tty tty33: hash matches
+[    3.864352] systemd[1]: Created slice Slice /system/getty.
+[    5.232450] dw-apb-uart.2: ttyS4 at MMIO 0x9432e000 (irq = 20, base_baud = 115200) is a 16550A
+[    7.412340] usb 1-3.3: FTDI USB Serial Device converter now attached to ttyUSB0
+:end:
+
+** Connect to device
+#+NAME: Connect to Device
+#+BEGIN_SRC shell :dir /sudo:: :results raw drawer
+echo "Usually the device is named ttyUSB#"
+sudo dmesg | grep tty
+#+END_SRC
+
+#+RESULTS: Find Serial Devices
+:results:
+Usually the device is named ttyUSB#
+[    0.131904] printk: console [tty0] enabled
+[    0.414941] tty tty33: hash matches
+[    3.864352] systemd[1]: Created slice Slice /system/getty.
+[    5.232450] dw-apb-uart.2: ttyS4 at MMIO 0x9432e000 (irq = 20, base_baud = 115200) is a 16550A
+[    7.412340] usb 1-3.3: FTDI USB Serial Device converter now attached to ttyUSB0
+:end:
+
+** Upload to device
+   Now that the the device has been determined, we can proceed to uploading code.
+   Go to one of the following folders and continue open the setup.org file.
+
+   |----------------------+------------------------+----------------------------------------------------|
+   | Software             | Folder                 | Description                                        |
+   |----------------------+------------------------+----------------------------------------------------|
+   | Arduino              | ./arduino/             | Use the Arduino IDE to test and upload code        |
+   | Micropython Official | ./micropythonOfficial/ | Use the latest official micropython binary         |
+   | Micropython Loboris  | ./micropythonLoboris/  | Use loboris micropython with custom features       |
+   | Micropython I/ON     | ./ION/                 | Use micropython version written for the smartwatch |
+   |----------------------+------------------------+----------------------------------------------------|
+   
+* Pins
+   |------+---------------+---+-----+------+-------------------------------------------|
+   | *Type* | *Name*          | *** | *Pin* | *Pull* | Description                               |
+   |------+---------------+---+-----+------+-------------------------------------------|
+   | I2C  | SDA           |   |  27 | UP   |                                           |
+   | I2C  | SCL           |   |  14 | UP   |                                           |
+   |      |               |   |     |      |                                           |
+   | SPI  | SDO/DI/MISO   |   |  19 |      |                                           |
+   | SPI  | SDI/DO/MOSI   |   |  23 |      |                                           |
+   | SPI  | SCK/SCL/CLK   |   |  18 |      |                                           |
+   | SPI  | CS (SD CARD)  |   |  25 |      |                                           |
+   | SPI  | CS  (LCD)     |   |  22 |      |                                           |
+   | SPI  | RST (LCD)     | * |  32 | DOWN | Pulled low forces hardware reset          |
+   | SPI  | DC  (LCD)     |   |   2 |      |                                           |
+   |      |               |   |     |      |                                           |
+   | I2S  | BCLK/CLK      |   |  26 |      |                                           |
+   | I2S  | LRCK          |   |  25 |      |                                           |
+   | I2S  | SD            |   |  33 | DOWN |                                           |
+   | I2S  | DIN (SPEAKER) |   |  13 |      |                                           |
+   | I2S  | DOUT  (MIC)   |   |  34 |      |                                           |
+   |      |               |   |     |      |                                           |
+   | SYS  | EN            |   |  EN | UP   | Pull low to reset                         |
+   | SYS  | PROG          | * |   0 | UP   | Pull low to program                       |
+   |      |               |   |     |      |                                           |
+   | LED  | DIN           | * |   0 | UP   | SK6812 powered at 4.2V                    |
+   |      |               |   |     |      |                                           |
+   | PWR  | ENABLE        |   |  21 |      | This pin enables 4.2V and 1.8V regulators |
+   |      |               |   |     |      |                                           |
+   | IR   | DOUT          |   | TX0 |      |                                           |
+   |      |               |   |     |      |                                           |
+   | TCH  | TOUCH         |   |   4 |      |                                           |
+   |      |               |   |     |      |                                           |
+   |------+---------------+---+-----+------+-------------------------------------------|
+   
+* I2C Addresses
+   |----------------------+----------+------+-----|
+   | Device               | Chip     |  Hex | Dec |
+   |----------------------+----------+------+-----|
+   | Touch Screen         | FT6206   | 0x38 |  56 |
+   | Light Sensor         | TSL2561  | 0x39 |  57 |
+   | Battery Sensor       | INA219   | 0x40 |  64 |
+   | Heart Rate Monitor   | MAX30102 | 0x57 |  87 |
+   | Haptic Controller    | DRV2605  | 0x5A |  90 |
+   | Real Time Clock      | M41T62   | 0x68 | 104 |
+   | 9-DOF Motion Sensor  | MPU9250  | 0x69 | 105 |
+   | Environmental Sensor | BME680   | 0x76 | 118 |
+   |----------------------+----------+------+-----|
+* Sample Test Code
+** Speaker
+#+NAME: I2S Speaker
+#+BEGIN_SRC C
+#include "Arduino.h"
+#include "WiFi.h"
+#include "Audio.h"
+#include "SD.h"
+#include "FS.h"
+
+// Digital I/O used
+#define SD_CS          5
+#define SPI_MOSI      23
+#define SPI_MISO      19
+#define SPI_SCK       18
+
+/*/BOARD
+#define I2S_DOUT      21
+#define I2S_BCLK      26
+#define I2S_LRC       25
+
+//WATCH*/
+#define I2S_BCLK      26
+#define I2S_LRC       25
+#define I2S_DOUT      13
+
+Audio  audio;
+String ssid     = "SSID"; 
+String password = "Password";
+
+void setup() {
+  pinMode(33, OUTPUT);
+  digitalWrite(33, HIGH);
+  delay(500);
+  Serial.begin(115200);
+  Serial.println("Disconnecting WiFi");
+  WiFi.disconnect();
+  Serial.println("Setting WiFi in station mode (WiFi-STA)");
+  WiFi.mode(WIFI_STA);
+  Serial.println("Setting connection to router");
+  WiFi.begin(ssid.c_str(), password.c_str());
+  Serial.println("Attempting to connect to Router");
+  while (WiFi.status() != WL_CONNECTED) delay(1500);
+  Serial.println("Connection succesful");
+  audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+  audio.setVolume(15); // Range 0 - 21
+  
+  //audio.connecttoSD("/320k_test.mp3");
+  //audio.connecttohost("www.wdr.de/wdrlive/media/einslive.m3u");
+  //audio.connecttohost("dg-ais-eco-http-fra-eco-cdn.cast.addradio.de/hellwegradio/west/mp3/high");
+  audio.connecttohost("fischkopp.stream.laut.fm/fischkopp");
+  //audio.connecttospeech("Hello World!", "de");
+}
+
+void loop(){
+  audio.loop();
+}
+
+//Optional
+void audio_info(const char *info){
+  Serial.print("info        ");
+  Serial.println(info);
+}
+
+void audio_id3data(const char *info){  //id3 metadata
+    Serial.print("id3data     ");
+    Serial.println(info);
+}
+
+void audio_eof_mp3(const char *info){  //end of file
+    Serial.print("eof_mp3     ");
+    Serial.println(info);
+}
+
+void audio_showstation(const char *info){
+    Serial.print("station     ");
+    Serial.println(info);
+}
+
+void audio_showstreaminfo(const char *info){
+    Serial.print("streaminfo  ");
+    Serial.println(info);
+}
+
+void audio_showstreamtitle(const char *info){
+    Serial.print("streamtitle ");
+    Serial.println(info);
+}
+
+void audio_bitrate(const char *info){
+    Serial.print("bitrate     ");
+    Serial.println(info);
+}
+
+void audio_commercial(const char *info){  //duration in sec
+    Serial.print("commercial  ");
+    Serial.println(info);
+}
+
+void audio_icyurl(const char *info){  //homepage
+    Serial.print("icyurl      ");
+    Serial.println(info);
+}
+
+void audio_lasthost(const char *info){  //stream URL played
+    Serial.print("lasthost    ");
+    Serial.println(info);
+}
+
+void audio_eof_speech(const char *info){
+    Serial.print("eof_speech  ");
+    Serial.println(info);
+}
+#+END_SRC
+
+** Battery Sensor
+#+NAME: I2C INA219
+#+BEGIN_SRC C
+#include <Wire.h>
+#include <Adafruit_INA219.h>
+#include "esp32-hal-cpu.h"
+
+
+Adafruit_INA219 ina219;
+
+
+void setup(void){
+  Serial.begin(115200);
+  
+  while (!Serial) {
+    delay(1);
+  }
+  Serial.println("Default Freq: " + String(getCpuFrequencyMhz()));
+  setCpuFrequencyMhz(80); //Set CPU clock to 80MHz fo example
+  esp_bt_controller_disable();
+  Serial.println("New Freq: " + String(getCpuFrequencyMhz()));
+  Wire.begin(27,14);
+
+  uint32_t currentFrequency;
+  // Initialize the INA219.
+  // By default the initialization will use the largest range (32V, 2A).  However
+  // you can call a setCalibration function to change this range (see comments).
+  if (! ina219.begin()) {
+    Serial.println("Failed to find INA219 chip");
+    while (1) { delay(10); }
+  }
+  
+  // To use a slightly lower 32V, 1A range (higher precision on amps):
+  // ina219.setCalibration_32V_1A();
+  // Or to use a lower 16V, 400mA range (higher precision on volts and amps):
+  // ina219.setCalibration_16V_400mA();
+  Serial.println("Measuring voltage and current with INA219 ...");
+}
+
+
+void loop(void){
+  float shuntvoltage = 0;
+  float busvoltage = 0;
+  float current_mA = 0;
+  float loadvoltage = 0;
+  float power_mW = 0;
+
+  shuntvoltage = ina219.getShuntVoltage_mV();
+  busvoltage = ina219.getBusVoltage_V();
+  current_mA = ina219.getCurrent_mA();
+  power_mW = ina219.getPower_mW();
+  loadvoltage = busvoltage + (shuntvoltage / 1000);
+
+  Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
+  Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
+  Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+  Serial.print("Current:       "); Serial.print(current_mA); Serial.println(" mA");
+  Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
+  Serial.println("");
+
+  delay(2000);
+}
+#+END_SRC
+
+** 9-DOF Motion Tracker
+#+NAME: i2C MPU-9250
+#+BEGIN_SRC C
+#include <MPU9250_asukiaaa.h>
+
+#ifdef _ESP32_HAL_I2C_H_
+#define SDA_PIN 21
+#define SCL_PIN 22
+#endif
+
+MPU9250 mySensor;
+
+void setup() {
+  while(!Serial);
+  
+  Serial.begin(115200);
+  Serial.println("started");
+  
+#ifdef _ESP32_HAL_I2C_H_
+  // for esp32
+  Wire.begin(SDA_PIN, SCL_PIN); //sda, scl
+  
+#else
+  Wire.begin();
+#endif
+  
+  mySensor.setWire(&Wire);
+  mySensor.beginAccel();
+  mySensor.beginMag();
+  
+  // you can set your own offset for mag values
+  // mySensor.magXOffset = -50;
+  // mySensor.magYOffset = -55;
+  // mySensor.magZOffset = -10;
+}
+
+
+void loop() {
+  mySensor.accelUpdate();
+  Serial.println("print accel values");
+  Serial.println("accelX: " + String(mySensor.accelX()));
+  Serial.println("accelY: " + String(mySensor.accelY()));
+  Serial.println("accelZ: " + String(mySensor.accelZ()));
+  Serial.println("accelSqrt: " + String(mySensor.accelSqrt()));
+  mySensor.magUpdate();
+  Serial.println("print mag values");
+  Serial.println("magX: " + String(mySensor.magX()));
+  Serial.println("maxY: " + String(mySensor.magY()));
+  Serial.println("magZ: " + String(mySensor.magZ()));
+  Serial.println("horizontal direction: " + String(mySensor.magHorizDirection()));
+  Serial.println("at " + String(millis()) + "ms");
+  delay(500);
+}
+#+END_SRC
+
+** I2C Scanner
+#+NAME: I2C Scanner
+#+BEGIN_SRC C
+#include <Wire.h>
+
+void setup(){
+  Serial.begin(115200);
+  Serial.println("\nI2C Scanner");
+  pinMode(21, OUTPUT);
+  digitalWrite(21, HIGH);
+  Wire.begin(27,14);
+  Serial.println("\nI2C Scan Start!");
+}
+
+void loop()
+{
+  byte error, address;
+  int nDevices;
+ 
+  Serial.println("Scanning...");
+ 
+  nDevices = 0;
+  for(address = 1; address < 127; address++ ){
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+   
+    if (error == 0){
+      Serial.print("I2C device found at address 0x");
+      if (address<16) Serial.print("0");
+      Serial.print(address,HEX);
+      Serial.println(" !");
+      nDevices++;
+    }
+    else if (error==4){
+      Serial.print("Unknown error at address 0x");
+      if (address<16)
+	Serial.print("0");
+      Serial.println(address,HEX);
+    } 
+  }
+  if (nDevices == 0)
+    Serial.println("No I2C devices found\n");
+  else
+    Serial.println("done\n");
+ 
+  delay(5000);      // wait 5 seconds for next scan
+}
+#+END_SRC
+
+** LCD Display
+#+NAME: SPI LCD
+#+BEGIN_SRC C
+/***************************************************
+  This is our GFX example for the Adafruit ILI9341 Breakout and Shield
+  ----> http://www.adafruit.com/products/1651
+ 
+  Check out the links above for our tutorials and wiring diagrams
+  These displays use SPI to communicate, 4 or 5 pins are required to
+  interface (RST is optional)
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
+  products from Adafruit!
+ 
+  Written by Limor Fried/Ladyada for Adafruit Industries.
+  MIT license, all text above must be included in any redistribution
+ ****************************************************/
+ 
+ 
+#include "SPI.h"
+#include "Adafruit_GFX.h"
+#include "Adafruit_ILI9341.h"
+ 
+// For the Adafruit shield, these are the default.
+#define TFT_DC 2
+#define TFT_CS 27
+#define TFT_MOSI 23
+#define TFT_CLK 18
+#define TFT_RST -1
+#define TFT_MISO 19
+ 
+// Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
+//Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
+// If using the breakout, change pins as desired
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
+ 
+void setup() {
+  Serial.begin(115200);
+  Serial.println("ILI9341 Test!");
+  pinMode(12, OUTPUT);
+  pinMode(14, OUTPUT);
+  digitalWrite(12, HIGH);
+  digitalWrite(14, HIGH);
+ 
+  tft.begin();
+ 
+  // read diagnostics (optional but can help debug problems)
+  uint8_t x = tft.readcommand8(ILI9341_RDMODE);
+  Serial.print("Display Power Mode: 0x"); Serial.println(x, HEX);
+  x = tft.readcommand8(ILI9341_RDMADCTL);
+  Serial.print("MADCTL Mode: 0x"); Serial.println(x, HEX);
+  x = tft.readcommand8(ILI9341_RDPIXFMT);
+  Serial.print("Pixel Format: 0x"); Serial.println(x, HEX);
+  x = tft.readcommand8(ILI9341_RDIMGFMT);
+  Serial.print("Image Format: 0x"); Serial.println(x, HEX);
+  x = tft.readcommand8(ILI9341_RDSELFDIAG);
+  Serial.print("Self Diagnostic: 0x"); Serial.println(x, HEX);
+ 
+  Serial.println(F("Benchmark                Time (microseconds)"));
+  delay(10);
+  Serial.print(F("Screen fill              "));
+  Serial.println(testFillScreen());
+  //delay(500);
+ 
+  Serial.print(F("Text                     "));
+  Serial.println(testText());
+  delay(3000);
+ 
+  Serial.print(F("Lines                    "));
+  Serial.println(testLines(ILI9341_CYAN));
+  delay(500);
+ 
+  Serial.print(F("Horiz/Vert Lines         "));
+  Serial.println(testFastLines(ILI9341_RED, ILI9341_BLUE));
+  delay(500);
+ 
+  Serial.print(F("Rectangles (outline)     "));
+  Serial.println(testRects(ILI9341_GREEN));
+  delay(500);
+ 
+  Serial.print(F("Rectangles (filled)      "));
+  Serial.println(testFilledRects(ILI9341_YELLOW, ILI9341_MAGENTA));
+  delay(500);
+ 
+  Serial.print(F("Circles (filled)         "));
+  Serial.println(testFilledCircles(10, ILI9341_MAGENTA));
+ 
+  Serial.print(F("Circles (outline)        "));
+  Serial.println(testCircles(10, ILI9341_WHITE));
+  delay(500);
+ 
+  Serial.print(F("Triangles (outline)      "));
+  Serial.println(testTriangles());
+  delay(500);
+ 
+  Serial.print(F("Triangles (filled)       "));
+  Serial.println(testFilledTriangles());
+  delay(500);
+ 
+  Serial.print(F("Rounded rects (outline)  "));
+  Serial.println(testRoundRects());
+  delay(500);
+ 
+  Serial.print(F("Rounded rects (filled)   "));
+  Serial.println(testFilledRoundRects());
+  delay(500);
+ 
+  Serial.println(F("Done!"));
+ 
+}
+ 
+ 
+void loop(void) {
+  for(uint8_t rotation=0; rotation<4; rotation++) {
+    tft.setRotation(rotation);
+    testText();
+    delay(1000);
+  }
+}
+ 
+unsigned long testFillScreen() {
+  unsigned long start = micros();
+  tft.fillScreen(ILI9341_BLACK);
+  yield();
+  tft.fillScreen(ILI9341_RED);
+  yield();
+  tft.fillScreen(ILI9341_GREEN);
+  yield();
+  tft.fillScreen(ILI9341_BLUE);
+  yield();
+  tft.fillScreen(ILI9341_BLACK);
+  yield();
+  return micros() - start;
+}
+ 
+unsigned long testText() {
+  tft.fillScreen(ILI9341_BLACK);
+  unsigned long start = micros();
+  tft.setCursor(0, 0);
+  tft.setTextColor(ILI9341_WHITE);  tft.setTextSize(1);
+  tft.println("Hello World!");
+  tft.setTextColor(ILI9341_YELLOW); tft.setTextSize(2);
+  tft.println(1234.56);
+  tft.setTextColor(ILI9341_RED);    tft.setTextSize(3);
+  tft.println(0xDEADBEEF, HEX);
+  tft.println();
+  tft.setTextColor(ILI9341_GREEN);
+  tft.setTextSize(5);
+  tft.println("Groop");
+  tft.setTextSize(2);
+  tft.println("I implore thee,");
+  tft.setTextSize(1);
+  tft.println("my foonting turlingdromes.");
+  tft.println("And hooptiously drangle me");
+  tft.println("with crinkly bindlewurdles,");
+  tft.println("Or I will rend thee");
+  tft.println("in the gobberwarts");
+  tft.println("with my blurglecruncheon,");
+  tft.println("see if I don't!");
+  return micros() - start;
+}
+ 
+unsigned long testLines(uint16_t color) {
+  unsigned long start, t;
+  int           x1, y1, x2, y2,
+                w = tft.width(),
+                h = tft.height();
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  yield();
+ 
+  x1 = y1 = 0;
+  y2    = h - 1;
+  start = micros();
+  for(x2=0; x2<w; x2+=6) tft.drawLine(x1, y1, x2, y2, color);
+  x2    = w - 1;
+  for(y2=0; y2<h; y2+=6) tft.drawLine(x1, y1, x2, y2, color);
+  t     = micros() - start; // fillScreen doesn't count against timing
+ 
+  yield();
+  tft.fillScreen(ILI9341_BLACK);
+  yield();
+ 
+  x1    = w - 1;
+  y1    = 0;
+  y2    = h - 1;
+  start = micros();
+  for(x2=0; x2<w; x2+=6) tft.drawLine(x1, y1, x2, y2, color);
+  x2    = 0;
+  for(y2=0; y2<h; y2+=6) tft.drawLine(x1, y1, x2, y2, color);
+  t    += micros() - start;
+ 
+  yield();
+  tft.fillScreen(ILI9341_BLACK);
+  yield();
+ 
+  x1    = 0;
+  y1    = h - 1;
+  y2    = 0;
+  start = micros();
+  for(x2=0; x2<w; x2+=6) tft.drawLine(x1, y1, x2, y2, color);
+  x2    = w - 1;
+  for(y2=0; y2<h; y2+=6) tft.drawLine(x1, y1, x2, y2, color);
+  t    += micros() - start;
+ 
+  yield();
+  tft.fillScreen(ILI9341_BLACK);
+  yield();
+ 
+  x1    = w - 1;
+  y1    = h - 1;
+  y2    = 0;
+  start = micros();
+  for(x2=0; x2<w; x2+=6) tft.drawLine(x1, y1, x2, y2, color);
+  x2    = 0;
+  for(y2=0; y2<h; y2+=6) tft.drawLine(x1, y1, x2, y2, color);
+ 
+  yield();
+  return micros() - start;
+}
+ 
+unsigned long testFastLines(uint16_t color1, uint16_t color2) {
+  unsigned long start;
+  int           x, y, w = tft.width(), h = tft.height();
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  start = micros();
+  for(y=0; y<h; y+=5) tft.drawFastHLine(0, y, w, color1);
+  for(x=0; x<w; x+=5) tft.drawFastVLine(x, 0, h, color2);
+ 
+  return micros() - start;
+}
+ 
+unsigned long testRects(uint16_t color) {
+  unsigned long start;
+  int           n, i, i2,
+                cx = tft.width()  / 2,
+                cy = tft.height() / 2;
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  n     = min(tft.width(), tft.height());
+  start = micros();
+  for(i=2; i<n; i+=6) {
+    i2 = i / 2;
+    tft.drawRect(cx-i2, cy-i2, i, i, color);
+  }
+ 
+  return micros() - start;
+}
+ 
+unsigned long testFilledRects(uint16_t color1, uint16_t color2) {
+  unsigned long start, t = 0;
+  int           n, i, i2,
+                cx = tft.width()  / 2 - 1,
+                cy = tft.height() / 2 - 1;
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  n = min(tft.width(), tft.height());
+  for(i=n; i>0; i-=6) {
+    i2    = i / 2;
+    start = micros();
+    tft.fillRect(cx-i2, cy-i2, i, i, color1);
+    t    += micros() - start;
+    // Outlines are not included in timing results
+    tft.drawRect(cx-i2, cy-i2, i, i, color2);
+    yield();
+  }
+ 
+  return t;
+}
+ 
+unsigned long testFilledCircles(uint8_t radius, uint16_t color) {
+  unsigned long start;
+  int x, y, w = tft.width(), h = tft.height(), r2 = radius * 2;
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  start = micros();
+  for(x=radius; x<w; x+=r2) {
+    for(y=radius; y<h; y+=r2) {
+      tft.fillCircle(x, y, radius, color);
+    }
+  }
+ 
+  return micros() - start;
+}
+ 
+unsigned long testCircles(uint8_t radius, uint16_t color) {
+  unsigned long start;
+  int           x, y, r2 = radius * 2,
+                w = tft.width()  + radius,
+                h = tft.height() + radius;
+ 
+  // Screen is not cleared for this one -- this is
+  // intentional and does not affect the reported time.
+  start = micros();
+  for(x=0; x<w; x+=r2) {
+    for(y=0; y<h; y+=r2) {
+      tft.drawCircle(x, y, radius, color);
+    }
+  }
+ 
+  return micros() - start;
+}
+ 
+unsigned long testTriangles() {
+  unsigned long start;
+  int           n, i, cx = tft.width()  / 2 - 1,
+                      cy = tft.height() / 2 - 1;
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  n     = min(cx, cy);
+  start = micros();
+  for(i=0; i<n; i+=5) {
+    tft.drawTriangle(
+      cx    , cy - i, // peak
+      cx - i, cy + i, // bottom left
+      cx + i, cy + i, // bottom right
+      tft.color565(i, i, i));
+  }
+ 
+  return micros() - start;
+}
+ 
+unsigned long testFilledTriangles() {
+  unsigned long start, t = 0;
+  int           i, cx = tft.width()  / 2 - 1,
+                   cy = tft.height() / 2 - 1;
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  start = micros();
+  for(i=min(cx,cy); i>10; i-=5) {
+    start = micros();
+    tft.fillTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
+      tft.color565(0, i*10, i*10));
+    t += micros() - start;
+    tft.drawTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
+      tft.color565(i*10, i*10, 0));
+    yield();
+  }
+ 
+  return t;
+}
+ 
+unsigned long testRoundRects() {
+  unsigned long start;
+  int           w, i, i2,
+                cx = tft.width()  / 2 - 1,
+                cy = tft.height() / 2 - 1;
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  w     = min(tft.width(), tft.height());
+  start = micros();
+  for(i=0; i<w; i+=6) {
+    i2 = i / 2;
+    tft.drawRoundRect(cx-i2, cy-i2, i, i, i/8, tft.color565(i, 0, 0));
+  }
+ 
+  return micros() - start;
+}
+ 
+unsigned long testFilledRoundRects() {
+  unsigned long start;
+  int           i, i2,
+                cx = tft.width()  / 2 - 1,
+                cy = tft.height() / 2 - 1;
+ 
+  tft.fillScreen(ILI9341_BLACK);
+  start = micros();
+  for(i=min(tft.width(), tft.height()); i>20; i-=6) {
+    i2 = i / 2;
+    tft.fillRoundRect(cx-i2, cy-i2, i, i, i/8, tft.color565(0, i, 0));
+    yield();
+  }
+ 
+  return micros() - start;
+}
+#+END_SRC
+
+** Sample Device
+#+NAME:
+#+BEGIN_SRC C
+#+END_SRC
